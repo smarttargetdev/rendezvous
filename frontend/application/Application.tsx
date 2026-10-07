@@ -123,7 +123,7 @@ const tabTransition = {
   filter: { duration: 0.18 },
 };
 
-export default function App() {
+export default function Application() {
   // App Global State
   const [platform, setPlatform] = useState<PlatformMode>('ios');
   const [theme, setTheme] = useState<AppTheme>('obsidian');
