@@ -323,7 +323,9 @@ CREATE TABLE users (
     loyalty_points INT UNSIGNED NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_users_geo (current_lat, current_lng)
+    INDEX idx_users_radar_geo (current_lat, current_lng, is_online, ghost_mode),
+    INDEX idx_users_radar_verified (role, is_verified, is_online, current_lat, current_lng),
+    INDEX idx_users_tribe_online (tribe, is_online)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE companion_profiles (
@@ -386,7 +388,10 @@ CREATE TABLE companion_bookings (
     location_address TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_companion_bk_client FOREIGN KEY (client_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_companion_bk_comp FOREIGN KEY (companion_id) REFERENCES users(id) ON DELETE CASCADE
+    CONSTRAINT fk_companion_bk_comp FOREIGN KEY (companion_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_comp_bookings_client_history (client_id, created_at DESC),
+    INDEX idx_comp_bookings_companion_history (companion_id, created_at DESC),
+    INDEX idx_comp_bookings_escrow_audit (escrow_status, created_at DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE audit_logs (

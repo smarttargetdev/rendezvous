@@ -39,8 +39,11 @@ CREATE TABLE users (
     loyalty_points INT UNSIGNED NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_users_geo (current_lat, current_lng),
-    INDEX idx_users_online (is_online, role)
+    -- Índices de Alta Performance para o Radar em Tempo Real
+    INDEX idx_users_radar_geo (current_lat, current_lng, is_online, ghost_mode),
+    INDEX idx_users_radar_verified (role, is_verified, is_online, current_lat, current_lng),
+    INDEX idx_users_tribe_online (tribe, is_online),
+    INDEX idx_users_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 2. Tabela de Perfil de Acompanhantes VIP
@@ -133,7 +136,10 @@ CREATE TABLE motel_bookings (
     CONSTRAINT fk_booking_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_booking_motel FOREIGN KEY (motel_id) REFERENCES motel_partners(id) ON DELETE CASCADE,
     CONSTRAINT fk_booking_suite FOREIGN KEY (suite_id) REFERENCES motel_suites(id) ON DELETE CASCADE,
-    INDEX idx_booking_user (user_id, status)
+    -- Índices Otimizados para Histórico e Check-in no Guia de Motéis
+    INDEX idx_motel_bookings_user_history (user_id, created_at DESC),
+    INDEX idx_motel_bookings_partner (motel_id, status, booking_date),
+    INDEX idx_motel_bookings_token (qr_code_token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 7. Agendamento de Acompanhantes com Garantia Escrow
@@ -154,7 +160,11 @@ CREATE TABLE companion_bookings (
     CONSTRAINT fk_companion_bk_client FOREIGN KEY (client_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_companion_bk_companion FOREIGN KEY (companion_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_companion_bk_motel FOREIGN KEY (motel_booking_id) REFERENCES motel_bookings(id) ON DELETE SET NULL,
-    INDEX idx_escrow_status (escrow_status)
+    -- Índices Otimizados para Consulta de Histórico, Disputas e Custódia Escrow
+    INDEX idx_comp_bookings_client_history (client_id, created_at DESC),
+    INDEX idx_comp_bookings_companion_history (companion_id, created_at DESC),
+    INDEX idx_comp_bookings_escrow_audit (escrow_status, meeting_status, created_at DESC),
+    INDEX idx_comp_bookings_meeting_date (companion_id, meeting_date, meeting_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 8. Sistema de Avaliações (Transparência Mútua)

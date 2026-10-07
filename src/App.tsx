@@ -31,6 +31,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import { 
   UserProfile, 
@@ -84,13 +85,63 @@ import { SupportChatModal } from './components/support/SupportChatModal';
 import { BookingHistorySection } from './components/history/BookingHistorySection';
 import { TransactionDetailModal } from './components/history/TransactionDetailModal';
 
+type AppTab = 'radar' | 'moteis' | 'chat' | 'companion' | 'profile';
+
+const TAB_ORDER: Record<AppTab, number> = {
+  radar: 0,
+  moteis: 1,
+  chat: 2,
+  companion: 3,
+  profile: 4,
+};
+
+const tabVariants = {
+  enter: (direction: number) => ({
+    x: direction > 0 ? 36 : -36,
+    opacity: 0,
+    scale: 0.985,
+    filter: 'blur(3px)',
+  }),
+  center: {
+    x: 0,
+    opacity: 1,
+    scale: 1,
+    filter: 'blur(0px)',
+  },
+  exit: (direction: number) => ({
+    x: direction > 0 ? -36 : 36,
+    opacity: 0,
+    scale: 0.985,
+    filter: 'blur(2px)',
+  }),
+};
+
+const tabTransition = {
+  x: { type: 'spring' as const, stiffness: 360, damping: 32, mass: 0.75 },
+  opacity: { duration: 0.2, ease: 'easeOut' as const },
+  scale: { duration: 0.22, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] },
+  filter: { duration: 0.18 },
+};
+
 export default function App() {
   // App Global State
   const [platform, setPlatform] = useState<PlatformMode>('ios');
   const [theme, setTheme] = useState<AppTheme>('obsidian');
   const [language, setLanguage] = useState<LanguageCode>('pt');
   const [isOffline, setIsOffline] = useState(false);
-  const [activeTab, setActiveTab] = useState<'radar' | 'moteis' | 'chat' | 'companion' | 'profile'>('radar');
+  
+  // App Shell Smooth Directional Tab Navigation State
+  const [activeTab, setActiveTabRaw] = useState<AppTab>('radar');
+  const [tabDirection, setTabDirection] = useState<number>(1);
+
+  const setActiveTab = (newTab: AppTab) => {
+    setActiveTabRaw((current) => {
+      if (newTab === current) return current;
+      const dir = TAB_ORDER[newTab] > TAB_ORDER[current] ? 1 : -1;
+      setTabDirection(dir);
+      return newTab;
+    });
+  };
 
   // Users & Data State
   const [currentUser, setCurrentUser] = useState<UserProfile>(INITIAL_CURRENT_USER);
@@ -485,396 +536,512 @@ export default function App() {
           </div>
         </header>
 
-        {/* Tab Content Display */}
+        {/* Tab Content Display with Framer Motion Smooth Page Transitions */}
         <div className="flex-1 overflow-hidden flex flex-col relative">
-          {activeTab === 'radar' && (
-            <RadarView
-              users={filteredUsers}
-              motels={motelsList}
-              onSelectUser={handleSelectUser}
-              onSelectMotel={handleSelectMotel}
-              onOpenFilter={() => setIsFilterOpen(true)}
-              activeFilterCount={activeFilterCount}
-            />
-          )}
+          <AnimatePresence mode="wait" custom={tabDirection} initial={false}>
+            {activeTab === 'radar' && (
+              <motion.div
+                key="radar"
+                custom={tabDirection}
+                variants={tabVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={tabTransition}
+                className="flex-1 flex flex-col h-full overflow-hidden w-full"
+              >
+                <RadarView
+                  users={filteredUsers}
+                  motels={motelsList}
+                  onSelectUser={handleSelectUser}
+                  onSelectMotel={handleSelectMotel}
+                  onOpenFilter={() => setIsFilterOpen(true)}
+                  activeFilterCount={activeFilterCount}
+                />
+              </motion.div>
+            )}
 
-          {activeTab === 'moteis' && (
-            <GuiaMoteisCatalog
-              motels={motelsList}
-              onSelectSuite={handleSelectSuiteForBooking}
-              onOpenReviews={(motel) => setReviewMotel(motel)}
-            />
-          )}
+            {activeTab === 'moteis' && (
+              <motion.div
+                key="moteis"
+                custom={tabDirection}
+                variants={tabVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={tabTransition}
+                className="flex-1 flex flex-col h-full overflow-hidden w-full"
+              >
+                <GuiaMoteisCatalog
+                  motels={motelsList}
+                  onSelectSuite={handleSelectSuiteForBooking}
+                  onOpenReviews={(motel) => setReviewMotel(motel)}
+                />
+              </motion.div>
+            )}
 
-          {activeTab === 'chat' && (
-            <div className="flex-1 flex flex-col h-full bg-neutral-950 p-3 sm:p-4 overflow-y-auto space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-neutral-800/80">
-                <div>
-                  <h2 className="text-sm font-bold text-white">Conversas Privadas & Seguras</h2>
-                  <p className="text-[11px] text-neutral-400">
-                    Criptografia de ponta a ponta (E2EE) ativa em todas as salas
-                  </p>
+            {activeTab === 'chat' && (
+              <motion.div
+                key="chat"
+                custom={tabDirection}
+                variants={tabVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={tabTransition}
+                className="flex-1 flex flex-col h-full bg-neutral-950 p-3 sm:p-4 overflow-y-auto space-y-3 w-full"
+              >
+                <div className="flex items-center justify-between pb-2 border-b border-neutral-800/80">
+                  <div>
+                    <h2 className="text-sm font-bold text-white">Conversas Privadas & Seguras</h2>
+                    <p className="text-[11px] text-neutral-400">
+                      Criptografia de ponta a ponta (E2EE) ativa em todas as salas
+                    </p>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 text-[10px] font-bold flex items-center gap-1">
+                    <Lock className="w-3 h-3" />
+                    E2EE Ativo
+                  </span>
                 </div>
-                <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 text-[10px] font-bold flex items-center gap-1">
-                  <Lock className="w-3 h-3" />
-                  E2EE Ativo
-                </span>
-              </div>
 
-              {/* Chat Threads List */}
-              <div className="space-y-2">
-                {usersList.slice(0, 4).map((user) => (
-                  <div
-                    key={user.id}
-                    onClick={() => setSelectedUserForChat(user)}
-                    className="p-3 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-rose-500/50 cursor-pointer flex items-center justify-between gap-3 transition-all"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="relative">
-                        <img
-                          src={user.avatar}
-                          alt={user.name}
-                          referrerPolicy="no-referrer"
-                          className="w-12 h-12 rounded-full object-cover ring-2 ring-neutral-700"
-                        />
-                        {user.isOnline && (
-                          <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-neutral-900" />
-                        )}
-                      </div>
-
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <h4 className="text-xs font-bold text-white truncate">{user.name}</h4>
-                          {user.role === 'companion' && (
-                            <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[9px] font-bold">
-                              VIP
-                            </span>
+                {/* Chat Threads List */}
+                <div className="space-y-2">
+                  {usersList.slice(0, 4).map((user) => (
+                    <div
+                      key={user.id}
+                      onClick={() => setSelectedUserForChat(user)}
+                      className="p-3 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-rose-500/50 cursor-pointer flex items-center justify-between gap-3 transition-all"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative">
+                          <img
+                            src={user.avatar}
+                            alt={user.name}
+                            referrerPolicy="no-referrer"
+                            className="w-12 h-12 rounded-full object-cover ring-2 ring-neutral-700"
+                          />
+                          {user.isOnline && (
+                            <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-neutral-900" />
                           )}
                         </div>
-                        <p className="text-[11px] text-neutral-400 truncate">
-                          {user.role === 'companion'
-                            ? 'Olá! Vi seu perfil no radar Rendezvous. Se estiver buscando companhia...'
-                            : 'E aí, vi que você está pertinho pelo radar! Curte tomar um drink mais tarde?'}
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <h4 className="text-xs font-bold text-white truncate">{user.name}</h4>
+                            {user.role === 'companion' && (
+                              <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[9px] font-bold">
+                                VIP
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-neutral-400 truncate">
+                            {user.role === 'companion'
+                              ? 'Olá! Vi seu perfil no radar Rendezvous. Se estiver buscando companhia...'
+                              : 'E aí, vi que você está pertinho pelo radar! Curte tomar um drink mais tarde?'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <div className="text-[10px] text-neutral-500">{user.lastActive}</div>
+                        <span className="text-[10px] font-semibold text-rose-400">{user.distanceKm} km</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'companion' && (
+              <motion.div
+                key="companion"
+                custom={tabDirection}
+                variants={tabVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={tabTransition}
+                className="flex-1 flex flex-col h-full bg-neutral-950 p-4 overflow-y-auto space-y-4 text-xs w-full"
+              >
+                {/* Companion Hero Strip */}
+                <div className="p-4 rounded-3xl bg-gradient-to-r from-neutral-900 via-amber-950/30 to-neutral-900 border border-neutral-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold border border-amber-500/40">
+                        <Sparkles className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-white">Central do Acompanhante VIP</h3>
+                        <p className="text-[11px] text-neutral-400">
+                          Garantia de recebimento seguro, agenda e suítes parceiras
                         </p>
                       </div>
                     </div>
 
-                    <div className="text-right shrink-0">
-                      <div className="text-[10px] text-neutral-500">{user.lastActive}</div>
-                      <span className="text-[10px] font-semibold text-rose-400">{user.distanceKm} km</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'companion' && (
-            <div className="flex-1 flex flex-col h-full bg-neutral-950 p-4 overflow-y-auto space-y-4 text-xs">
-              {/* Companion Hero Strip */}
-              <div className="p-4 rounded-3xl bg-gradient-to-r from-neutral-900 via-amber-950/30 to-neutral-900 border border-neutral-800 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold border border-amber-500/40">
-                      <Sparkles className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-white">Central do Acompanhante VIP</h3>
-                      <p className="text-[11px] text-neutral-400">
-                        Garantia de recebimento seguro, agenda e suítes parceiras
-                      </p>
-                    </div>
+                    <button
+                      onClick={() => setIsCompanionManagerOpen(true)}
+                      className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs transition-colors shadow-sm"
+                    >
+                      Gerenciar Perfil
+                    </button>
                   </div>
 
-                  <button
-                    onClick={() => setIsCompanionManagerOpen(true)}
-                    className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs transition-colors shadow-sm"
-                  >
-                    Gerenciar Perfil
-                  </button>
-                </div>
-
-                {/* Financial Summary */}
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-neutral-800">
-                  <div className="p-3 rounded-2xl bg-neutral-950 border border-neutral-800">
-                    <div className="text-[10px] text-neutral-400">Saldo Disponível</div>
-                    <div className="text-lg font-bold text-white font-mono mt-0.5">
-                      R$ {currentUser.companionData?.walletBalance.toFixed(2) || '2450.00'}
+                  {/* Financial Summary */}
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-neutral-800">
+                    <div className="p-3 rounded-2xl bg-neutral-950 border border-neutral-800">
+                      <div className="text-[10px] text-neutral-400">Saldo Disponível</div>
+                      <div className="text-lg font-bold text-white font-mono mt-0.5">
+                        R$ {currentUser.companionData?.walletBalance.toFixed(2) || '2450.00'}
+                      </div>
+                      <div className="text-[10px] text-emerald-400 font-medium">Saque PIX liberado</div>
                     </div>
-                    <div className="text-[10px] text-emerald-400 font-medium">Saque PIX liberado</div>
-                  </div>
 
-                  <div className="p-3 rounded-2xl bg-neutral-950 border border-neutral-800">
-                    <div className="text-[10px] text-neutral-400">Em Custódia Garantida</div>
-                    <div className="text-lg font-bold text-amber-400 font-mono mt-0.5">
-                      R$ {currentUser.companionData?.pendingBalance.toFixed(2) || '700.00'}
-                    </div>
-                    <div className="text-[10px] text-neutral-400">1 agendamento pendente</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Preference & Rates Showcase */}
-              <div className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-3">
-                <h4 className="font-bold text-white text-xs uppercase tracking-wider">
-                  Suas Tarifas Ativas para Contratação
-                </h4>
-
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="p-2.5 rounded-xl bg-neutral-950 border border-neutral-800">
-                    <div className="text-[10px] text-neutral-400">1 Hora</div>
-                    <div className="text-sm font-bold text-rose-400 font-mono mt-0.5">
-                      R$ {currentUser.companionData?.hourlyRate || 350}
-                    </div>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-neutral-950 border border-neutral-800">
-                    <div className="text-[10px] text-neutral-400">2 Horas</div>
-                    <div className="text-sm font-bold text-rose-400 font-mono mt-0.5">
-                      R$ {currentUser.companionData?.twoHourRate || 600}
-                    </div>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-neutral-950 border border-neutral-800">
-                    <div className="text-[10px] text-neutral-400">Pernoite</div>
-                    <div className="text-sm font-bold text-rose-400 font-mono mt-0.5">
-                      R$ {currentUser.companionData?.overnightRate || 1800}
+                    <div className="p-3 rounded-2xl bg-neutral-950 border border-neutral-800">
+                      <div className="text-[10px] text-neutral-400">Em Custódia Garantida</div>
+                      <div className="text-lg font-bold text-amber-400 font-mono mt-0.5">
+                        R$ {currentUser.companionData?.pendingBalance.toFixed(2) || '700.00'}
+                      </div>
+                      <div className="text-[10px] text-neutral-400">1 agendamento pendente</div>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-800 flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <div className="text-[11px] font-semibold text-neutral-200">Chave PIX de Recebimento</div>
-                    <div className="text-[10px] text-neutral-400 font-mono">
-                      {currentUser.companionData?.bankAccount.pixKey || '342.***.***-09'} (Nubank)
+                {/* Preference & Rates Showcase */}
+                <div className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-3">
+                  <h4 className="font-bold text-white text-xs uppercase tracking-wider">
+                    Suas Tarifas Ativas para Contratação
+                  </h4>
+
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="p-2.5 rounded-xl bg-neutral-950 border border-neutral-800">
+                      <div className="text-[10px] text-neutral-400">1 Hora</div>
+                      <div className="text-sm font-bold text-rose-400 font-mono mt-0.5">
+                        R$ {currentUser.companionData?.hourlyRate || 350}
+                      </div>
                     </div>
-                  </div>
-                  <button
-                    onClick={() => setIsCompanionManagerOpen(true)}
-                    className="text-[11px] text-rose-400 hover:text-rose-300 font-medium underline"
-                  >
-                    Editar
-                  </button>
-                </div>
-              </div>
-
-              {/* Escrow Protection Explanation */}
-              <div className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-2">
-                <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>Segurança Financeira Garantida por Escrow</span>
-                </div>
-                <p className="text-[11px] text-neutral-400 leading-relaxed">
-                  O cliente realiza o pagamento antecipado na plataforma. O valor fica 100% garantido e bloqueado. Você atende com tranquilidade sabendo que o cachê já está depositado e será liberado via PIX imediatamente.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'profile' && (
-            <div className="flex-1 flex flex-col h-full bg-neutral-950 p-4 overflow-y-auto space-y-4 text-xs">
-              {/* User Identity Card */}
-              <div className="p-4 rounded-3xl bg-neutral-900 border border-neutral-800 flex items-center gap-3.5">
-                <div className="relative">
-                  <img
-                    src={currentUser.avatar}
-                    alt={currentUser.name}
-                    referrerPolicy="no-referrer"
-                    className="w-16 h-16 rounded-2xl object-cover ring-2 ring-rose-500"
-                  />
-                  {currentUser.isVerified && (
-                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-cyan-500 text-neutral-950 flex items-center justify-center font-bold text-[10px]">
-                      ✓
+                    <div className="p-2.5 rounded-xl bg-neutral-950 border border-neutral-800">
+                      <div className="text-[10px] text-neutral-400">2 Horas</div>
+                      <div className="text-sm font-bold text-rose-400 font-mono mt-0.5">
+                        R$ {currentUser.companionData?.twoHourRate || 600}
+                      </div>
                     </div>
-                  )}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold text-white truncate">{currentUser.name}, {currentUser.age}</h3>
-                    {currentUser.isVerified && (
-                      <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 text-[10px] font-bold">
-                        VERIFICADO
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-neutral-400">
-                    {currentUser.tribe} · {currentUser.height} · {currentUser.weight}
-                  </div>
-                  <div className="text-[10px] text-emerald-400 mt-0.5">
-                    {currentUser.prepStatus}
-                  </div>
-                </div>
-              </div>
-
-              {/* Rendezvous Club Card */}
-              <div 
-                onClick={() => setIsLoyaltyOpen(true)}
-                className="cursor-pointer p-4 rounded-3xl bg-gradient-to-r from-neutral-900 via-amber-950/40 to-neutral-900 border border-neutral-800 hover:border-amber-500/50 transition-all flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold border border-amber-500/40">
-                    <Crown className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                      <span>Rendezvous Club</span>
-                      <span className="text-[10px] text-amber-400 font-mono font-bold">({loyaltyPoints} pts)</span>
-                    </div>
-                    <p className="text-[10px] text-neutral-400">Descontos exclusivos no Guia de Motéis</p>
-                  </div>
-                </div>
-
-                <ChevronRight className="w-4 h-4 text-neutral-400" />
-              </div>
-
-              {/* Full Booking & Appointment History Section */}
-              <div className="p-4 sm:p-5 rounded-3xl bg-neutral-900/90 border border-neutral-800 shadow-xl">
-                <BookingHistorySection
-                  companionBookings={companionBookingsHistory}
-                  motelBookings={motelBookingsHistory}
-                  onOpenTransactionDetails={setSelectedTransactionForDetails}
-                  onRepeatCompanionBooking={handleRepeatCompanionBooking}
-                  onRepeatMotelBooking={handleRepeatMotelBooking}
-                />
-              </div>
-
-              {/* Action Buttons Hub */}
-              <div className="space-y-2">
-                {/* Photo Verification Trigger */}
-                <button
-                  onClick={() => setIsVerificationOpen(true)}
-                  className="w-full p-3 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 flex items-center justify-between transition-colors text-left"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <ShieldCheck className="w-4 h-4 text-cyan-400" />
-                    <div>
-                      <div className="font-semibold text-white">Selo de Verificação por Selfie</div>
-                      <div className="text-[10px] text-neutral-400">
-                        {currentUser.isVerified ? 'Identidade confirmada com sucesso' : 'Validar biometria facial'}
+                    <div className="p-2.5 rounded-xl bg-neutral-950 border border-neutral-800">
+                      <div className="text-[10px] text-neutral-400">Pernoite</div>
+                      <div className="text-sm font-bold text-rose-400 font-mono mt-0.5">
+                        R$ {currentUser.companionData?.overnightRate || 1800}
                       </div>
                     </div>
                   </div>
-                  <span className="text-[11px] text-cyan-400 font-semibold">
-                    {currentUser.isVerified ? 'Ativo' : 'Verificar'}
-                  </span>
-                </button>
 
-                {/* Biometric Passkey Unlock test */}
-                <button
-                  onClick={() => setIsBiometricOpen(true)}
-                  className="w-full p-3 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 flex items-center justify-between transition-colors text-left"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Fingerprint className="w-4 h-4 text-rose-400" />
-                    <div>
-                      <div className="font-semibold text-white">Bloqueio por Biometria / FaceID</div>
-                      <div className="text-[10px] text-neutral-400">Proteção biométrica para transações financeiras</div>
+                  <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-800 flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <div className="text-[11px] font-semibold text-neutral-200">Chave PIX de Recebimento</div>
+                      <div className="text-[10px] text-neutral-400 font-mono">
+                        {currentUser.companionData?.bankAccount.pixKey || '342.***.***-09'} (Nubank)
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setIsCompanionManagerOpen(true)}
+                      className="text-[11px] text-rose-400 hover:text-rose-300 font-medium underline"
+                    >
+                      Editar
+                    </button>
+                  </div>
+                </div>
+
+                {/* Escrow Protection Explanation */}
+                <div className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-2">
+                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Segurança Financeira Garantida por Escrow</span>
+                  </div>
+                  <p className="text-[11px] text-neutral-400 leading-relaxed">
+                    O cliente realiza o pagamento antecipado na plataforma. O valor fica 100% garantido e bloqueado. Você atende com tranquilidade sabendo que o cachê já está depositado e será liberado via PIX imediatamente.
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'profile' && (
+              <motion.div
+                key="profile"
+                custom={tabDirection}
+                variants={tabVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={tabTransition}
+                className="flex-1 flex flex-col h-full bg-neutral-950 p-4 overflow-y-auto space-y-4 text-xs w-full"
+              >
+                {/* User Identity Card */}
+                <div className="p-4 rounded-3xl bg-neutral-900 border border-neutral-800 flex items-center gap-3.5">
+                  <div className="relative">
+                    <img
+                      src={currentUser.avatar}
+                      alt={currentUser.name}
+                      referrerPolicy="no-referrer"
+                      className="w-16 h-16 rounded-2xl object-cover ring-2 ring-rose-500"
+                    />
+                    {currentUser.isVerified && (
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-cyan-500 text-neutral-950 flex items-center justify-center font-bold text-[10px]">
+                        ✓
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-white truncate">{currentUser.name}, {currentUser.age}</h3>
+                      {currentUser.isVerified && (
+                        <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 text-[10px] font-bold">
+                          VERIFICADO
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-neutral-400">
+                      {currentUser.tribe} · {currentUser.height} · {currentUser.weight}
+                    </div>
+                    <div className="text-[10px] text-emerald-400 mt-0.5">
+                      {currentUser.prepStatus}
                     </div>
                   </div>
-                  <span className="text-[11px] text-emerald-400 font-semibold">Ativado</span>
-                </button>
+                </div>
 
-                {/* Safety & SOS */}
-                <button
-                  onClick={() => setIsSafetyOpen(true)}
-                  className="w-full p-3 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 flex items-center justify-between transition-colors text-left"
+                {/* Rendezvous Club Card */}
+                <div 
+                  onClick={() => setIsLoyaltyOpen(true)}
+                  className="cursor-pointer p-4 rounded-3xl bg-gradient-to-r from-neutral-900 via-amber-950/40 to-neutral-900 border border-neutral-800 hover:border-amber-500/50 transition-all flex items-center justify-between"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <AlertTriangle className="w-4 h-4 text-amber-400" />
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold border border-amber-500/40">
+                      <Crown className="w-5 h-5" />
+                    </div>
                     <div>
-                      <div className="font-semibold text-white">Central de Segurança & LGPD</div>
-                      <div className="text-[10px] text-neutral-400">Denúncia, botão SOS e direitos de privacidade</div>
+                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>Rendezvous Club</span>
+                        <span className="text-[10px] text-amber-400 font-mono font-bold">({loyaltyPoints} pts)</span>
+                      </div>
+                      <p className="text-[10px] text-neutral-400">Descontos exclusivos no Guia de Motéis</p>
                     </div>
                   </div>
+
                   <ChevronRight className="w-4 h-4 text-neutral-400" />
-                </button>
+                </div>
 
-                {/* Admin Dashboard */}
-                <button
-                  onClick={() => setIsAdminOpen(true)}
-                  className="w-full p-3 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 flex items-center justify-between transition-colors text-left"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <ShieldCheck className="w-4 h-4 text-rose-400" />
-                    <div>
-                      <div className="font-semibold text-white">Painel Administrativo & Métricas</div>
-                      <div className="text-[10px] text-neutral-400">Moderação em tempo real e exportação PDF/Excel</div>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-neutral-400" />
-                </button>
+                {/* Full Booking & Appointment History Section */}
+                <div className="p-4 sm:p-5 rounded-3xl bg-neutral-900/90 border border-neutral-800 shadow-xl">
+                  <BookingHistorySection
+                    companionBookings={companionBookingsHistory}
+                    motelBookings={motelBookingsHistory}
+                    onOpenTransactionDetails={setSelectedTransactionForDetails}
+                    onRepeatCompanionBooking={handleRepeatCompanionBooking}
+                    onRepeatMotelBooking={handleRepeatMotelBooking}
+                  />
+                </div>
 
-                {/* PHP Backend Architecture */}
-                <button
-                  onClick={() => setIsBackendOpen(true)}
-                  className="w-full p-3 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 flex items-center justify-between transition-colors text-left"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Code2 className="w-4 h-4 text-amber-400" />
-                    <div>
-                      <div className="font-semibold text-white">Arquitetura PHP 8.3 & WebSockets</div>
-                      <div className="text-[10px] text-neutral-400">Código do servidor Swoole, Escrow e API Guia de Motéis</div>
+                {/* Action Buttons Hub */}
+                <div className="space-y-2">
+                  {/* Photo Verification Trigger */}
+                  <button
+                    onClick={() => setIsVerificationOpen(true)}
+                    className="w-full p-3 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 flex items-center justify-between transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                      <div>
+                        <div className="font-semibold text-white">Selo de Verificação por Selfie</div>
+                        <div className="text-[10px] text-neutral-400">
+                          {currentUser.isVerified ? 'Identidade confirmada com sucesso' : 'Validar biometria facial'}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-neutral-400" />
-                </button>
-              </div>
-            </div>
-          )}
+                    <span className="text-[11px] text-cyan-400 font-semibold">
+                      {currentUser.isVerified ? 'Ativo' : 'Verificar'}
+                    </span>
+                  </button>
+
+                  {/* Biometric Passkey Unlock test */}
+                  <button
+                    onClick={() => setIsBiometricOpen(true)}
+                    className="w-full p-3 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 flex items-center justify-between transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Fingerprint className="w-4 h-4 text-rose-400" />
+                      <div>
+                        <div className="font-semibold text-white">Bloqueio por Biometria / FaceID</div>
+                        <div className="text-[10px] text-neutral-400">Proteção biométrica para transações financeiras</div>
+                      </div>
+                    </div>
+                    <span className="text-[11px] text-emerald-400 font-semibold">Ativado</span>
+                  </button>
+
+                  {/* Safety & SOS */}
+                  <button
+                    onClick={() => setIsSafetyOpen(true)}
+                    className="w-full p-3 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 flex items-center justify-between transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <AlertTriangle className="w-4 h-4 text-amber-400" />
+                      <div>
+                        <div className="font-semibold text-white">Central de Segurança & LGPD</div>
+                        <div className="text-[10px] text-neutral-400">Denúncia, botão SOS e direitos de privacidade</div>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-400" />
+                  </button>
+
+                  {/* Admin Dashboard */}
+                  <button
+                    onClick={() => setIsAdminOpen(true)}
+                    className="w-full p-3 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 flex items-center justify-between transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <ShieldCheck className="w-4 h-4 text-rose-400" />
+                      <div>
+                        <div className="font-semibold text-white">Painel Administrativo & Métricas</div>
+                        <div className="text-[10px] text-neutral-400">Moderação em tempo real e exportação PDF/Excel</div>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-400" />
+                  </button>
+
+                  {/* PHP Backend Architecture */}
+                  <button
+                    onClick={() => setIsBackendOpen(true)}
+                    className="w-full p-3 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 flex items-center justify-between transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Code2 className="w-4 h-4 text-amber-400" />
+                      <div>
+                        <div className="font-semibold text-white">Arquitetura PHP 8.3 & WebSockets</div>
+                        <div className="text-[10px] text-neutral-400">Código do servidor Swoole, Escrow e API Guia de Motéis</div>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-400" />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* Bottom Navigation Bar */}
-        <nav className="h-16 bg-neutral-900/95 border-t border-neutral-800/80 backdrop-blur-md px-2 grid grid-cols-5 items-center shrink-0 z-30">
-          <button
+        {/* Bottom Navigation Bar with Spring Touch Feedback & Active Pill */}
+        <nav className="h-16 bg-neutral-900/95 border-t border-neutral-800/80 backdrop-blur-md px-2 grid grid-cols-5 items-center shrink-0 z-30 relative">
+          <motion.button
+            whileTap={{ scale: 0.90 }}
             onClick={() => setActiveTab('radar')}
-            className={`flex flex-col items-center justify-center py-1 transition-colors ${
-              activeTab === 'radar' ? 'text-rose-500' : 'text-neutral-400 hover:text-white'
+            className={`flex flex-col items-center justify-center py-1 transition-colors relative ${
+              activeTab === 'radar' ? 'text-rose-500 font-semibold' : 'text-neutral-400 hover:text-white'
             }`}
           >
-            <Radio className="w-5 h-5" />
+            {activeTab === 'radar' && (
+              <motion.div
+                layoutId="activeTabIndicator"
+                className="absolute -top-2 w-8 h-1 bg-rose-500 rounded-full"
+                transition={{ type: 'spring', stiffness: 480, damping: 32 }}
+              />
+            )}
+            <motion.div
+              animate={{ scale: activeTab === 'radar' ? 1.1 : 1, y: activeTab === 'radar' ? -1 : 0 }}
+              transition={{ duration: 0.18 }}
+            >
+              <Radio className="w-5 h-5" />
+            </motion.div>
             <span className="text-[10px] font-medium tracking-tight mt-1">Radar</span>
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
+            whileTap={{ scale: 0.90 }}
             onClick={() => setActiveTab('moteis')}
-            className={`flex flex-col items-center justify-center py-1 transition-colors ${
-              activeTab === 'moteis' ? 'text-rose-500' : 'text-neutral-400 hover:text-white'
+            className={`flex flex-col items-center justify-center py-1 transition-colors relative ${
+              activeTab === 'moteis' ? 'text-rose-500 font-semibold' : 'text-neutral-400 hover:text-white'
             }`}
           >
-            <BedDouble className="w-5 h-5" />
+            {activeTab === 'moteis' && (
+              <motion.div
+                layoutId="activeTabIndicator"
+                className="absolute -top-2 w-8 h-1 bg-rose-500 rounded-full"
+                transition={{ type: 'spring', stiffness: 480, damping: 32 }}
+              />
+            )}
+            <motion.div
+              animate={{ scale: activeTab === 'moteis' ? 1.1 : 1, y: activeTab === 'moteis' ? -1 : 0 }}
+              transition={{ duration: 0.18 }}
+            >
+              <BedDouble className="w-5 h-5" />
+            </motion.div>
             <span className="text-[10px] font-medium tracking-tight mt-1">Motéis</span>
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
+            whileTap={{ scale: 0.90 }}
             onClick={() => setActiveTab('chat')}
             className={`flex flex-col items-center justify-center py-1 transition-colors relative ${
-              activeTab === 'chat' ? 'text-rose-500' : 'text-neutral-400 hover:text-white'
+              activeTab === 'chat' ? 'text-rose-500 font-semibold' : 'text-neutral-400 hover:text-white'
             }`}
           >
-            <MessageCircle className="w-5 h-5" />
+            {activeTab === 'chat' && (
+              <motion.div
+                layoutId="activeTabIndicator"
+                className="absolute -top-2 w-8 h-1 bg-rose-500 rounded-full"
+                transition={{ type: 'spring', stiffness: 480, damping: 32 }}
+              />
+            )}
+            <motion.div
+              animate={{ scale: activeTab === 'chat' ? 1.1 : 1, y: activeTab === 'chat' ? -1 : 0 }}
+              transition={{ duration: 0.18 }}
+            >
+              <MessageCircle className="w-5 h-5" />
+            </motion.div>
             <span className="text-[10px] font-medium tracking-tight mt-1">Conversas</span>
             <span className="absolute top-1 right-1/4 w-2 h-2 rounded-full bg-rose-500" />
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
+            whileTap={{ scale: 0.90 }}
             onClick={() => setActiveTab('companion')}
-            className={`flex flex-col items-center justify-center py-1 transition-colors ${
+            className={`flex flex-col items-center justify-center py-1 transition-colors relative ${
               activeTab === 'companion' ? 'text-amber-400 font-bold' : 'text-neutral-400 hover:text-white'
             }`}
           >
-            <Sparkles className="w-5 h-5" />
+            {activeTab === 'companion' && (
+              <motion.div
+                layoutId="activeTabIndicator"
+                className="absolute -top-2 w-8 h-1 bg-amber-400 rounded-full"
+                transition={{ type: 'spring', stiffness: 480, damping: 32 }}
+              />
+            )}
+            <motion.div
+              animate={{ scale: activeTab === 'companion' ? 1.1 : 1, y: activeTab === 'companion' ? -1 : 0 }}
+              transition={{ duration: 0.18 }}
+            >
+              <Sparkles className="w-5 h-5" />
+            </motion.div>
             <span className="text-[10px] font-medium tracking-tight mt-1">Acompanhante</span>
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
+            whileTap={{ scale: 0.90 }}
             onClick={() => setActiveTab('profile')}
-            className={`flex flex-col items-center justify-center py-1 transition-colors ${
-              activeTab === 'profile' ? 'text-rose-500' : 'text-neutral-400 hover:text-white'
+            className={`flex flex-col items-center justify-center py-1 transition-colors relative ${
+              activeTab === 'profile' ? 'text-rose-500 font-semibold' : 'text-neutral-400 hover:text-white'
             }`}
           >
-            <User className="w-5 h-5" />
+            {activeTab === 'profile' && (
+              <motion.div
+                layoutId="activeTabIndicator"
+                className="absolute -top-2 w-8 h-1 bg-rose-500 rounded-full"
+                transition={{ type: 'spring', stiffness: 480, damping: 32 }}
+              />
+            )}
+            <motion.div
+              animate={{ scale: activeTab === 'profile' ? 1.1 : 1, y: activeTab === 'profile' ? -1 : 0 }}
+              transition={{ duration: 0.18 }}
+            >
+              <User className="w-5 h-5" />
+            </motion.div>
             <span className="text-[10px] font-medium tracking-tight mt-1">Perfil</span>
-          </button>
+          </motion.button>
         </nav>
       </div>
 

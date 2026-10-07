@@ -10,12 +10,15 @@ import {
   BedDouble, 
   Calendar, 
   Sparkles, 
-  CheckCheck,
-  Check,
-  Flame,
-  AlertCircle
+  CheckCheck, 
+  Check, 
+  Flame, 
+  AlertCircle,
+  Phone,
+  Video
 } from 'lucide-react';
 import { UserProfile, ChatMessage, PartnerMotel } from '../../types';
+import { WebRTCCallModal } from './WebRTCCallModal';
 
 interface E2EEChatDrawerProps {
   isOpen: boolean;
@@ -40,6 +43,8 @@ export const E2EEChatDrawer: React.FC<E2EEChatDrawerProps> = ({
   const [inputText, setInputText] = useState('');
   const [disappearSeconds, setDisappearSeconds] = useState<number>(0);
   const [isPeerTyping, setIsPeerTyping] = useState(false);
+  const [activeCallType, setActiveCallType] = useState<'audio' | 'video' | null>(null);
+  const [isCallMinimized, setIsCallMinimized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Initialize conversation with realistic encrypted messages
@@ -112,9 +117,40 @@ export const E2EEChatDrawer: React.FC<E2EEChatDrawerProps> = ({
     }, 800);
   };
 
+  const handleEndCall = (durationSeconds: number, type: 'audio' | 'video', status: 'completed' | 'missed') => {
+    setActiveCallType(null);
+    setIsCallMinimized(false);
+
+    const mins = Math.floor(durationSeconds / 60);
+    const secs = durationSeconds % 60;
+    const timeFormatted = `${mins}m ${secs.toString().padStart(2, '0')}s`;
+
+    const callRecordText = status === 'completed'
+      ? `Chamada de ${type === 'video' ? 'vídeo' : 'voz'} criptografada finalizada (${timeFormatted})`
+      : `Chamada de ${type === 'video' ? 'vídeo' : 'voz'} não atendida`;
+
+    const callMsg: ChatMessage = {
+      id: `call_${Date.now()}`,
+      senderId: currentUser.id,
+      receiverId: peerUser.id,
+      text: callRecordText,
+      timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      isEncrypted: true,
+      mediaType: 'call_log',
+      callPayload: {
+        type,
+        durationSeconds,
+        status
+      },
+      status: 'read'
+    };
+
+    setMessages((prev) => [...prev, callMsg]);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-end sm:justify-center bg-black/80 backdrop-blur-md p-0 sm:p-4 animate-in fade-in duration-200">
-      <div className="w-full sm:max-w-lg h-full sm:h-[90vh] bg-neutral-900 border border-neutral-800 rounded-none sm:rounded-3xl flex flex-col overflow-hidden shadow-2xl">
+      <div className="w-full sm:max-w-lg h-full sm:h-[90vh] bg-neutral-900 border border-neutral-800 rounded-none sm:rounded-3xl flex flex-col overflow-hidden shadow-2xl relative">
         {/* Chat Top Header */}
         <div className="p-3.5 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between gap-2 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
@@ -150,7 +186,31 @@ export const E2EEChatDrawer: React.FC<E2EEChatDrawerProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
+            {/* WebRTC Voice Call */}
+            <button
+              onClick={() => {
+                setActiveCallType('audio');
+                setIsCallMinimized(false);
+              }}
+              className="p-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 hover:text-emerald-400 transition-colors"
+              title="Iniciar Chamada de Voz E2EE (WebRTC)"
+            >
+              <Phone className="w-4 h-4 text-emerald-400" />
+            </button>
+
+            {/* WebRTC Video Call */}
+            <button
+              onClick={() => {
+                setActiveCallType('video');
+                setIsCallMinimized(false);
+              }}
+              className="p-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 hover:text-rose-400 transition-colors"
+              title="Iniciar Chamada de Vídeo E2EE (WebRTC)"
+            >
+              <Video className="w-4 h-4 text-rose-400" />
+            </button>
+
             {/* Companion Quick Booking button in chat */}
             {peerUser.role === 'companion' && (
               <button
@@ -205,13 +265,46 @@ export const E2EEChatDrawer: React.FC<E2EEChatDrawerProps> = ({
                 className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-in fade-in`}
               >
                 <div
-                  className={`max-w-[80%] rounded-2xl p-3 text-xs leading-relaxed relative ${
+                  className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed relative ${
                     isMe
-                      ? 'bg-rose-600 text-white rounded-br-xs shadow-md shadow-rose-950/40'
+                      ? msg.mediaType === 'call_log'
+                        ? 'bg-neutral-900 text-white rounded-br-xs border border-rose-500/40 shadow-md'
+                        : 'bg-rose-600 text-white rounded-br-xs shadow-md shadow-rose-950/40'
                       : 'bg-neutral-800 text-neutral-100 rounded-bl-xs border border-neutral-700/60'
                   }`}
                 >
-                  <p>{msg.text}</p>
+                  {msg.mediaType === 'call_log' ? (
+                    <div className="flex items-center gap-2.5 py-0.5">
+                      <div
+                        className={`p-2.5 rounded-xl ${
+                          msg.callPayload?.status === 'completed'
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                            : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                        }`}
+                      >
+                        {msg.callPayload?.type === 'video' ? (
+                          <Video className="w-4 h-4" />
+                        ) : (
+                          <Phone className="w-4 h-4" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-bold text-white text-xs">
+                          {msg.callPayload?.type === 'video' ? 'Chamada de Vídeo WebRTC' : 'Chamada de Voz WebRTC'}
+                        </div>
+                        <div className="text-[10px] text-neutral-300 flex items-center gap-1.5 mt-0.5">
+                          <ShieldCheck className="w-3 h-3 text-emerald-400 shrink-0" />
+                          <span>
+                            {msg.callPayload?.status === 'completed'
+                              ? `Duração: ${Math.floor((msg.callPayload?.durationSeconds || 0) / 60)}m ${((msg.callPayload?.durationSeconds || 0) % 60).toString().padStart(2, '0')}s • E2EE SRTP`
+                              : 'Chamada não atendida'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p>{msg.text}</p>
+                  )}
 
                   <div
                     className={`mt-1 flex items-center justify-end gap-1 text-[9px] ${
@@ -272,8 +365,12 @@ export const E2EEChatDrawer: React.FC<E2EEChatDrawerProps> = ({
             <Image className="w-4 h-4" />
           </button>
           <button
+            onClick={() => {
+              setActiveCallType('audio');
+              setIsCallMinimized(false);
+            }}
             className="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
-            title="Áudio Criptografado"
+            title="Iniciar Chamada de Voz E2EE"
           >
             <Mic className="w-4 h-4" />
           </button>
@@ -295,6 +392,19 @@ export const E2EEChatDrawer: React.FC<E2EEChatDrawerProps> = ({
             <Send className="w-4 h-4" />
           </button>
         </div>
+
+        {/* WebRTC Audio/Video Call Active Screen or Minimized PiP */}
+        {activeCallType && (
+          <WebRTCCallModal
+            isOpen={!!activeCallType}
+            callType={activeCallType}
+            currentUser={currentUser}
+            peerUser={peerUser}
+            isMinimized={isCallMinimized}
+            onToggleMinimize={() => setIsCallMinimized(!isCallMinimized)}
+            onEndCall={handleEndCall}
+          />
+        )}
       </div>
     </div>
   );

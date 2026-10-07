@@ -141,8 +141,13 @@ export interface ChatMessage {
   isDisappearing?: boolean;
   disappearSeconds?: number;
   mediaUrl?: string;
-  mediaType?: 'photo' | 'audio' | 'location' | 'booking_invite';
+  mediaType?: 'photo' | 'audio' | 'location' | 'booking_invite' | 'call_log';
   bookingPayload?: any;
+  callPayload?: {
+    type: 'audio' | 'video';
+    durationSeconds: number;
+    status: 'completed' | 'missed' | 'declined';
+  };
   status: 'sent' | 'delivered' | 'read';
 }
 
