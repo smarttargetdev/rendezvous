@@ -1,6 +1,10 @@
 {
   "name": "Rendezvous - Encontros, Radar & Guia de Motéis",
   "description": "Plataforma multi-plataforma de encontros gay, radar em tempo real, chat E2EE, agendamento de acompanhantes e integração Guia de Motéis.",
-  "requestFramePermissions": ["geolocation"],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
