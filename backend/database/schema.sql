@@ -7,12 +7,12 @@
 SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS audit_logs;
 DROP TABLE IF EXISTS reviews;
-DROP TABLE IF EXISTS companion_bookings;
-DROP TABLE IF EXISTS motel_bookings;
-DROP TABLE IF EXISTS motel_suites;
-DROP TABLE IF EXISTS motel_partners;
-DROP TABLE IF EXISTS companion_bank_accounts;
-DROP TABLE IF EXISTS companion_profiles;
+DROP TABLE IF EXISTS schedules;
+DROP TABLE IF EXISTS bookings;
+DROP TABLE IF EXISTS suites;
+DROP TABLE IF EXISTS motels;
+DROP TABLE IF EXISTS accounts;
+DROP TABLE IF EXISTS companions;
 DROP TABLE IF EXISTS users;
 SET FOREIGN_KEY_CHECKS = 1;
 
@@ -46,8 +46,8 @@ CREATE TABLE users (
     INDEX idx_users_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 2. Tabela de Perfil de Acompanhantes VIP
-CREATE TABLE companion_profiles (
+-- 2. Tabela de Perfil de Acompanhantes VIP (companions)
+CREATE TABLE companions (
     user_id VARCHAR(36) NOT NULL PRIMARY KEY,
     hourly_rate DECIMAL(10,2) NOT NULL,
     two_hour_rate DECIMAL(10,2) NOT NULL,
@@ -65,8 +65,8 @@ CREATE TABLE companion_profiles (
     CONSTRAINT fk_companion_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 3. Dados Bancários e Chave PIX do Acompanhante para Repasses
-CREATE TABLE companion_bank_accounts (
+-- 3. Dados Bancários e Chave PIX do Acompanhante para Repasses (accounts)
+CREATE TABLE accounts (
     id VARCHAR(36) NOT NULL PRIMARY KEY,
     companion_id VARCHAR(36) NOT NULL,
     pix_key_type ENUM('cpf', 'email', 'phone', 'random') NOT NULL,
@@ -79,11 +79,11 @@ CREATE TABLE companion_bank_accounts (
     payout_frequency ENUM('instantaneo', 'semanal', 'mensal') NOT NULL DEFAULT 'instantaneo',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_bank_companion FOREIGN KEY (companion_id) REFERENCES users(id) ON DELETE CASCADE
+    CONSTRAINT fk_account_companion FOREIGN KEY (companion_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 4. Estabelecimentos Parceiros do Guia de Motéis
-CREATE TABLE motel_partners (
+-- 4. Estabelecimentos Parceiros do Guia de Motéis (motels)
+CREATE TABLE motels (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
     brand VARCHAR(100) NOT NULL,
@@ -98,11 +98,11 @@ CREATE TABLE motel_partners (
     phone VARCHAR(30) NULL,
     is_open_24h BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_motel_geo (lat, lng)
+    INDEX idx_motels_geo (lat, lng)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 5. Suítes dos Motéis Parceiros (Fotos Reais & Comodidades)
-CREATE TABLE motel_suites (
+-- 5. Suítes dos Motéis Parceiros com Fotos Reais & Comodidades (suites)
+CREATE TABLE suites (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     motel_id VARCHAR(64) NOT NULL,
     name VARCHAR(120) NOT NULL,
@@ -115,11 +115,11 @@ CREATE TABLE motel_suites (
     has_dark_room BOOLEAN NOT NULL DEFAULT FALSE,
     photo_url TEXT NOT NULL,
     description TEXT NULL,
-    CONSTRAINT fk_suite_motel FOREIGN KEY (motel_id) REFERENCES motel_partners(id) ON DELETE CASCADE
+    CONSTRAINT fk_suite_motel FOREIGN KEY (motel_id) REFERENCES motels(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 6. Reservas Diretas no Guia de Motéis com Check-in por QR Code
-CREATE TABLE motel_bookings (
+-- 6. Reservas Diretas no Guia de Motéis com Check-in por QR Code (bookings)
+CREATE TABLE bookings (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
     motel_id VARCHAR(64) NOT NULL,
@@ -134,16 +134,16 @@ CREATE TABLE motel_bookings (
     qr_code_token VARCHAR(128) NOT NULL UNIQUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_booking_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_booking_motel FOREIGN KEY (motel_id) REFERENCES motel_partners(id) ON DELETE CASCADE,
-    CONSTRAINT fk_booking_suite FOREIGN KEY (suite_id) REFERENCES motel_suites(id) ON DELETE CASCADE,
+    CONSTRAINT fk_booking_motel FOREIGN KEY (motel_id) REFERENCES motels(id) ON DELETE CASCADE,
+    CONSTRAINT fk_booking_suite FOREIGN KEY (suite_id) REFERENCES suites(id) ON DELETE CASCADE,
     -- Índices Otimizados para Histórico e Check-in no Guia de Motéis
-    INDEX idx_motel_bookings_user_history (user_id, created_at DESC),
-    INDEX idx_motel_bookings_partner (motel_id, status, booking_date),
-    INDEX idx_motel_bookings_token (qr_code_token)
+    INDEX idx_bookings_user_history (user_id, created_at DESC),
+    INDEX idx_bookings_partner (motel_id, status, booking_date),
+    INDEX idx_bookings_token (qr_code_token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 7. Agendamento de Acompanhantes com Garantia Escrow
-CREATE TABLE companion_bookings (
+-- 7. Agendamento de Acompanhantes com Garantia Escrow (schedules)
+CREATE TABLE schedules (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     client_id VARCHAR(36) NOT NULL,
     companion_id VARCHAR(36) NOT NULL,
@@ -157,14 +157,14 @@ CREATE TABLE companion_bookings (
     meeting_status ENUM('agendado', 'em_andamento', 'concluido', 'cancelado') NOT NULL DEFAULT 'agendado',
     payment_method ENUM('pix', 'cartao_credito', 'apple_pay', 'google_pay') NOT NULL DEFAULT 'pix',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_companion_bk_client FOREIGN KEY (client_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_companion_bk_companion FOREIGN KEY (companion_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_companion_bk_motel FOREIGN KEY (motel_booking_id) REFERENCES motel_bookings(id) ON DELETE SET NULL,
+    CONSTRAINT fk_schedule_client FOREIGN KEY (client_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_schedule_companion FOREIGN KEY (companion_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_schedule_booking FOREIGN KEY (motel_booking_id) REFERENCES bookings(id) ON DELETE SET NULL,
     -- Índices Otimizados para Consulta de Histórico, Disputas e Custódia Escrow
-    INDEX idx_comp_bookings_client_history (client_id, created_at DESC),
-    INDEX idx_comp_bookings_companion_history (companion_id, created_at DESC),
-    INDEX idx_comp_bookings_escrow_audit (escrow_status, meeting_status, created_at DESC),
-    INDEX idx_comp_bookings_meeting_date (companion_id, meeting_date, meeting_status)
+    INDEX idx_schedules_client_history (client_id, created_at DESC),
+    INDEX idx_schedules_companion_history (companion_id, created_at DESC),
+    INDEX idx_schedules_escrow_audit (escrow_status, meeting_status, created_at DESC),
+    INDEX idx_schedules_meeting_date (companion_id, meeting_date, meeting_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 8. Sistema de Avaliações (Transparência Mútua)
