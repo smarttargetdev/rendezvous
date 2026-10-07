@@ -1,4 +1,4 @@
-import { UserProfile, PartnerMotel, AuditLog, ReportedUserTicket, PushNotification } from '../types';
+import { UserProfile, PartnerMotel, AuditLog, ReportedUserTicket, PushNotification, CompanionBooking, MotelBooking } from '../types';
 
 export const INITIAL_CURRENT_USER: UserProfile = {
   id: 'usr_me_01',
@@ -461,6 +461,82 @@ export const MOCK_AUDIT_LOGS: AuditLog[] = [
   }
 ];
 
+export const MOCK_INITIAL_COMPANION_BOOKINGS: CompanionBooking[] = [
+  {
+    id: 'APPT-98421',
+    companionId: 'usr_02',
+    companionName: 'Matheus Becker',
+    companionAvatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&auto=format&fit=crop&q=80',
+    clientId: 'usr_me_01',
+    clientName: 'Lucas Rossi',
+    dateTime: 'Hoje, 2026-10-06 às 21:00',
+    durationHours: 2,
+    totalAmount: 700.00,
+    escrowStatus: 'retido_plataforma',
+    locationType: 'motel',
+    locationAddress: 'Motel Lush (Ipiranga) - Suíte Spa Privativo',
+    motelPartnerBookingId: 'motel_01',
+    notes: 'Jantar e massagem relaxante combinados pelo chat criptografado.',
+    meetingStatus: 'agendado',
+    createdAt: '2026-10-06T14:20:00Z',
+    paymentMethod: 'pix'
+  },
+  {
+    id: 'APPT-84192',
+    companionId: 'usr_04',
+    companionName: 'Gabriel Siqueira',
+    companionAvatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&auto=format&fit=crop&q=80',
+    clientId: 'usr_me_01',
+    clientName: 'Lucas Rossi',
+    dateTime: '03 de Outubro de 2026 às 20:30',
+    durationHours: 1,
+    totalAmount: 300.00,
+    escrowStatus: 'liberado_ao_acompanhante',
+    locationType: 'motel',
+    locationAddress: 'Opium Motel Jardins - Suíte Noir',
+    motelPartnerBookingId: 'motel_03',
+    notes: 'Conversa agradável e total discrição.',
+    meetingStatus: 'concluido',
+    createdAt: '2026-10-03T18:10:00Z',
+    paymentMethod: 'cartao_credito'
+  }
+];
+
+export const MOCK_INITIAL_MOTEL_BOOKINGS: MotelBooking[] = [
+  {
+    id: 'BK-789210',
+    motelId: 'motel_01',
+    motelName: 'Motel Lush (Ipiranga)',
+    suiteName: 'Suíte Lush Spa Privativo',
+    suitePhoto: '/src/assets/images/suite_luxury_motel_1791333366683.jpg',
+    date: 'Hoje, 2026-10-06',
+    timeSlot: '21:30',
+    periodHours: 4,
+    totalPrice: 144.00,
+    discountApplied: 36.00,
+    pointsEarned: 216,
+    status: 'confirmada',
+    qrCodeToken: 'RDV-VOUCHER-LUSH-789',
+    createdAt: '2026-10-06T14:25:00Z'
+  },
+  {
+    id: 'BK-651034',
+    motelId: 'motel_03',
+    motelName: 'Opium Motel Jardins',
+    suiteName: 'Suíte Noir Sensual',
+    suitePhoto: '/src/assets/images/rendezvous_hero_splash_1791333347900.jpg',
+    date: '28 de Setembro de 2026',
+    timeSlot: '22:00',
+    periodHours: 12,
+    totalPrice: 442.50,
+    discountApplied: 147.50,
+    pointsEarned: 663,
+    status: 'concluida',
+    qrCodeToken: 'RDV-VOUCHER-OPIUM-651',
+    createdAt: '2026-09-28T19:00:00Z'
+  }
+];
+
 export const MOCK_REPORTS: ReportedUserTicket[] = [
   {
     id: 'rep_102',
@@ -485,3 +561,5 @@ export const MOCK_REPORTS: ReportedUserTicket[] = [
     status: 'em_analise'
   }
 ];
+
+

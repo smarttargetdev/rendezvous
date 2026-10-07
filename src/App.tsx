@@ -51,7 +51,9 @@ import {
   MOCK_PARTNER_MOTEIS, 
   MOCK_NOTIFICATIONS, 
   MOCK_AUDIT_LOGS, 
-  MOCK_REPORTS 
+  MOCK_REPORTS,
+  MOCK_INITIAL_COMPANION_BOOKINGS,
+  MOCK_INITIAL_MOTEL_BOOKINGS
 } from './data/mockData';
 
 import { TRANSLATIONS } from './translations';
@@ -79,6 +81,8 @@ import { PhotoVerificationModal } from './components/safety/PhotoVerificationMod
 import { AdminDashboardModal } from './components/admin/AdminDashboardModal';
 import { BackendArchitectureViewer } from './components/backend/BackendArchitectureViewer';
 import { SupportChatModal } from './components/support/SupportChatModal';
+import { BookingHistorySection } from './components/history/BookingHistorySection';
+import { TransactionDetailModal } from './components/history/TransactionDetailModal';
 
 export default function App() {
   // App Global State
@@ -96,6 +100,11 @@ export default function App() {
   const [reportsList, setReportsList] = useState(MOCK_REPORTS);
   const [loyaltyPoints, setLoyaltyPoints] = useState(1280);
   const [currentNotification, setCurrentNotification] = useState<PushNotification | null>(MOCK_NOTIFICATIONS[0]);
+
+  // History State for Transparent Consulting & One-Click Repeat
+  const [companionBookingsHistory, setCompanionBookingsHistory] = useState<CompanionBooking[]>(MOCK_INITIAL_COMPANION_BOOKINGS);
+  const [motelBookingsHistory, setMotelBookingsHistory] = useState<MotelBooking[]>(MOCK_INITIAL_MOTEL_BOOKINGS);
+  const [selectedTransactionForDetails, setSelectedTransactionForDetails] = useState<{ companion?: CompanionBooking; motel?: MotelBooking } | null>(null);
 
   // Selected Entities & Modals
   const [selectedUserForChat, setSelectedUserForChat] = useState<UserProfile | null>(null);
@@ -166,6 +175,7 @@ export default function App() {
 
   const handleConfirmMotelBooking = (booking: MotelBooking) => {
     setLoyaltyPoints((prev) => prev + booking.pointsEarned);
+    setMotelBookingsHistory((prev) => [booking, ...prev]);
     // Push notification trigger
     setCurrentNotification({
       id: `notif_${Date.now()}`,
@@ -179,10 +189,104 @@ export default function App() {
 
   const handleConfirmCompanionBooking = (booking: CompanionBooking) => {
     setLoyaltyPoints((prev) => prev + 250);
+    setCompanionBookingsHistory((prev) => [booking, ...prev]);
     setCurrentNotification({
       id: `notif_${Date.now()}`,
       title: 'Custódia Escrow Bloqueada!',
       body: `R$ ${booking.totalAmount.toFixed(2)} seguros. Notificação enviada para ${booking.companionName}.`,
+      type: 'booking',
+      timestamp: 'Agora',
+      read: false
+    });
+  };
+
+  // 1-Click Repeat Booking Handlers
+  const handleRepeatCompanionBooking = (booking: CompanionBooking) => {
+    const companionUser = usersList.find((u) => u.id === booking.companionId) || {
+      id: booking.companionId,
+      name: booking.companionName,
+      age: 26,
+      avatar: booking.companionAvatar,
+      distanceKm: 0.5,
+      bio: 'Acompanhante VIP exclusivo.',
+      role: 'companion' as const,
+      tribe: 'Sarado' as const,
+      isOnline: true,
+      isVerified: true,
+      lastActive: 'Agora',
+      height: '1.85m',
+      weight: '82kg',
+      prepStatus: 'Em uso de PrEP' as const,
+      tags: ['Acompanhante VIP', 'Massagem'],
+      lat: -23.56,
+      lng: -46.65,
+      photos: [booking.companionAvatar],
+      companionData: {
+        hourlyRate: booking.totalAmount / (booking.durationHours || 1),
+        twoHourRate: booking.totalAmount,
+        overnightRate: 1800,
+        services: ['Jantar', 'Massagem', 'Suíte privativa'],
+        boundaries: ['Respeito mútuo'],
+        availableSchedule: 'Disponível',
+        suitePhotos: ['/src/assets/images/suite_luxury_motel_1791333366683.jpg'],
+        meetingLocations: ['motel', 'hotel'] as any,
+        bankAccount: {
+          pixKeyType: 'cpf' as const,
+          pixKey: '342.***.***-09',
+          bankName: 'Nubank',
+          agency: '0001',
+          accountNumber: '89472-1',
+          accountType: 'corrente' as const,
+          fullName: booking.companionName,
+          payoutFrequency: 'instantaneo' as const
+        },
+        walletBalance: 1200,
+        pendingBalance: 0,
+        totalEarned: 15000,
+        completedBookings: 20,
+        verifiedIdentity: true
+      },
+      rating: 4.95,
+      reviewCount: 22
+    };
+
+    setSelectedUserForBooking(companionUser);
+    try {
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: { y: 0.5 }
+      });
+    } catch (e) {}
+
+    setCurrentNotification({
+      id: `repeat_${Date.now()}`,
+      title: 'Repetição com 1 Clique Iniciada!',
+      body: `Agendamento pré-configurado para ${booking.companionName}. Confirme para reter a garantia escrow.`,
+      type: 'booking',
+      timestamp: 'Agora',
+      read: false
+    });
+  };
+
+  const handleRepeatMotelBooking = (booking: MotelBooking) => {
+    const motel = motelsList.find((m) => m.id === booking.motelId) || motelsList[0];
+    const suite = motel.suites.find((s) => s.name === booking.suiteName) || motel.suites[0];
+
+    setCheckoutMotel(motel);
+    setCheckoutSuite(suite);
+    try {
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: { y: 0.5 }
+      });
+    } catch (e) {}
+
+    setCurrentNotification({
+      id: `repeat_motel_${Date.now()}`,
+      title: 'Reserva Repetida com 1 Clique!',
+      body: `Suíte ${suite.name} no ${motel.name} carregada com desconto aplicado.`,
       type: 'booking',
       timestamp: 'Agora',
       read: false
@@ -623,6 +727,17 @@ export default function App() {
                 <ChevronRight className="w-4 h-4 text-neutral-400" />
               </div>
 
+              {/* Full Booking & Appointment History Section */}
+              <div className="p-4 sm:p-5 rounded-3xl bg-neutral-900/90 border border-neutral-800 shadow-xl">
+                <BookingHistorySection
+                  companionBookings={companionBookingsHistory}
+                  motelBookings={motelBookingsHistory}
+                  onOpenTransactionDetails={setSelectedTransactionForDetails}
+                  onRepeatCompanionBooking={handleRepeatCompanionBooking}
+                  onRepeatMotelBooking={handleRepeatMotelBooking}
+                />
+              </div>
+
               {/* Action Buttons Hub */}
               <div className="space-y-2">
                 {/* Photo Verification Trigger */}
@@ -892,6 +1007,13 @@ export default function App() {
       <SupportChatModal
         isOpen={isSupportOpen}
         onClose={() => setIsSupportOpen(false)}
+      />
+
+      <TransactionDetailModal
+        isOpen={!!selectedTransactionForDetails}
+        onClose={() => setSelectedTransactionForDetails(null)}
+        companionBooking={selectedTransactionForDetails?.companion}
+        motelBooking={selectedTransactionForDetails?.motel}
       />
     </DeviceFrameWrapper>
   );

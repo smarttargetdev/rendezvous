@@ -22,13 +22,51 @@ export const BackendArchitectureViewer: React.FC<BackendArchitectureViewerProps>
   onClose
 }) => {
   const [activeFile, setActiveFile] = useState<
-    'websocket' | 'escrow' | 'guiamoteis' | 'schema' | 'native'
-  >('websocket');
+    'websocket' | 'escrow' | 'guiamoteis' | 'schema' | 'native' | 'github'
+  >('github');
   const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
 
   const CODE_FILES = {
+    github: {
+      name: 'Instruções para Exportação Direta ao GitHub',
+      code: `# =========================================================================
+# PASSOS PARA EXPORTAR E PUBLICAR O BACKEND NO SEU GITHUB
+# =========================================================================
+
+# 1. Abra o terminal na raiz da pasta do backend
+cd backend
+
+# 2. Inicialize o repositório Git local
+git init
+
+# 3. Adicione todos os arquivos do backend (Swoole, Docker, Composer, PostgreSQL)
+git add .
+
+# 4. Registre o commit inicial
+git commit -m "feat: initial commit of Rendezvous PHP 8.3 Swoole Backend"
+
+# 5. Defina a branch principal como main
+git branch -M main
+
+# 6. Vincule ao seu repositório remoto criado no GitHub
+# (Substitua SEU-USUARIO pelo seu nome de usuário ou organização no GitHub)
+git remote add origin https://github.com/SEU-USUARIO/rendezvous-backend.git
+
+# 7. Envie os arquivos para o GitHub
+git push -u origin main
+
+# =========================================================================
+# SUBINDO O AMBIENTE COM DOCKER (OPCIONAL)
+# =========================================================================
+docker-compose up --build -d
+
+# Endpoints ativos:
+# WebSocket: ws://localhost:9501 (Porta Swoole)
+# REST API:  http://localhost:8000/api/health
+# Banco:     PostgreSQL 16 na porta 5432`
+    },
     websocket: {
       name: 'server_swoole.php (Swoole 5.1 / PHP 8.3 Async Server)',
       code: `<?php
@@ -263,70 +301,105 @@ class GuiaMoteisClient
     },
 
     schema: {
-      name: 'schema.sql (PostgreSQL 16 / MySQL 8.4 DDL com LGPD)',
-      code: `-- Rendezvous Core Database Schema (PostgreSQL 16)
--- Conforme LGPD (Auditoria Imutável e Chaves Criptográficas)
+      name: 'schema.sql (MySQL 8.0 / 8.4 LTS DDL com InnoDB & LGPD)',
+      code: `-- Rendezvous Core Database Schema (MySQL 8.0 / 8.4 LTS)
+-- Engine: InnoDB | Charset: utf8mb4 | Collate: utf8mb4_unicode_ci
 
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id VARCHAR(36) NOT NULL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
     name VARCHAR(120) NOT NULL,
-    age SMALLINT NOT NULL CHECK (age >= 18),
-    role VARCHAR(20) NOT NULL DEFAULT 'client', -- 'client' or 'companion'
-    tribe VARCHAR(40),
-    is_verified BOOLEAN DEFAULT FALSE,
-    verification_photo_hash VARCHAR(128),
-    current_lat NUMERIC(9,6),
-    current_lng NUMERIC(9,6),
-    loyalty_points INT DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+    age SMALLINT UNSIGNED NOT NULL,
+    role ENUM('client', 'companion') NOT NULL DEFAULT 'client',
+    tribe VARCHAR(40) NULL,
+    bio TEXT NULL,
+    is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    prep_status VARCHAR(40) NOT NULL DEFAULT 'Privado',
+    current_lat DECIMAL(9,6) NULL,
+    current_lng DECIMAL(9,6) NULL,
+    is_online BOOLEAN NOT NULL DEFAULT FALSE,
+    ghost_mode BOOLEAN NOT NULL DEFAULT FALSE,
+    loyalty_points INT UNSIGNED NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_users_geo (current_lat, current_lng)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE companion_profiles (
-    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    hourly_rate NUMERIC(10,2) NOT NULL,
-    two_hour_rate NUMERIC(10,2) NOT NULL,
-    overnight_rate NUMERIC(10,2) NOT NULL,
-    available_schedule TEXT,
-    wallet_balance NUMERIC(12,2) DEFAULT 0.00,
-    pending_escrow NUMERIC(12,2) DEFAULT 0.00,
-    verified_identity BOOLEAN DEFAULT FALSE
-);
+    user_id VARCHAR(36) NOT NULL PRIMARY KEY,
+    hourly_rate DECIMAL(10,2) NOT NULL,
+    two_hour_rate DECIMAL(10,2) NOT NULL,
+    overnight_rate DECIMAL(10,2) NOT NULL,
+    services JSON NULL,
+    boundaries JSON NULL,
+    available_schedule TEXT NULL,
+    wallet_balance DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    pending_escrow DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    total_earned DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    completed_bookings INT UNSIGNED NOT NULL DEFAULT 0,
+    rating DECIMAL(3,2) NOT NULL DEFAULT 5.00,
+    verified_identity BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_companion_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE companion_bank_accounts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    companion_id UUID NOT NULL REFERENCES users(id),
-    pix_key_type VARCHAR(20) NOT NULL,
+    id VARCHAR(36) NOT NULL PRIMARY KEY,
+    companion_id VARCHAR(36) NOT NULL,
+    pix_key_type ENUM('cpf', 'email', 'phone', 'random') NOT NULL,
     pix_key VARCHAR(255) NOT NULL,
     bank_name VARCHAR(100) NOT NULL,
     agency VARCHAR(20) NOT NULL,
     account_number VARCHAR(30) NOT NULL,
-    account_type VARCHAR(20) DEFAULT 'corrente',
-    payout_frequency VARCHAR(20) DEFAULT 'instantaneo'
-);
+    account_type ENUM('corrente', 'poupanca') NOT NULL DEFAULT 'corrente',
+    full_name VARCHAR(150) NOT NULL,
+    payout_frequency ENUM('instantaneo', 'semanal', 'mensal') NOT NULL DEFAULT 'instantaneo',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_bank_companion FOREIGN KEY (companion_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE motel_partners (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    brand VARCHAR(100) NOT NULL,
+    address TEXT NOT NULL,
+    neighborhood VARCHAR(100) NOT NULL,
+    city VARCHAR(100) NOT NULL,
+    lat DECIMAL(9,6) NOT NULL,
+    lng DECIMAL(9,6) NOT NULL,
+    rating DECIMAL(3,2) NOT NULL DEFAULT 4.90,
+    exclusive_discount_percent INT UNSIGNED NOT NULL DEFAULT 20,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_motel_geo (lat, lng)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE companion_bookings (
-    id VARCHAR(64) PRIMARY KEY,
-    client_id UUID NOT NULL REFERENCES users(id),
-    companion_id UUID NOT NULL REFERENCES users(id),
-    meeting_time TIMESTAMPTZ NOT NULL,
-    duration_hours SMALLINT NOT NULL,
-    total_amount NUMERIC(10,2) NOT NULL,
-    escrow_status VARCHAR(40) NOT NULL DEFAULT 'retido_plataforma',
-    location_type VARCHAR(30) NOT NULL,
-    motel_booking_id VARCHAR(64),
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    client_id VARCHAR(36) NOT NULL,
+    companion_id VARCHAR(36) NOT NULL,
+    meeting_date TIMESTAMP NOT NULL,
+    duration_hours SMALLINT UNSIGNED NOT NULL,
+    total_amount DECIMAL(10,2) NOT NULL,
+    escrow_status ENUM('retido_plataforma', 'liberado_ao_acompanhante', 'em_disputa') NOT NULL DEFAULT 'retido_plataforma',
+    location_type ENUM('motel', 'hotel', 'domicilio', 'meu_local') NOT NULL,
+    location_address TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_companion_bk_client FOREIGN KEY (client_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_companion_bk_comp FOREIGN KEY (companion_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE audit_logs (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     actor_id VARCHAR(64) NOT NULL,
-    ip_address INET NOT NULL,
-    category VARCHAR(30) NOT NULL, -- 'auth', 'financial', 'moderation', 'lgpd'
+    ip_address VARCHAR(45) NOT NULL,
+    category ENUM('auth', 'financial', 'moderation', 'lgpd', 'system') NOT NULL,
     action VARCHAR(80) NOT NULL,
-    details JSONB,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);`
+    details JSON NOT NULL,
+    status ENUM('success', 'flagged', 'blocked') NOT NULL DEFAULT 'success',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_audit_actor_time (actor_id, created_at DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`
     },
 
     native: {
@@ -385,6 +458,15 @@ CREATE TABLE audit_logs (
           </div>
 
           <div className="flex items-center gap-2">
+            <a
+              href="/rendezvous-backend.zip"
+              download="rendezvous-backend.zip"
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+              title="Baixar todos os arquivos do backend em um arquivo ZIP pronto para GitHub"
+            >
+              <span>📦 Baixar ZIP</span>
+            </a>
+
             <button
               onClick={handleCopy}
               className="px-3 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-semibold flex items-center gap-1.5 transition-colors"
@@ -405,6 +487,7 @@ CREATE TABLE audit_logs (
         {/* File Tabs */}
         <div className="flex p-2 bg-neutral-950/80 border-b border-neutral-800 text-xs gap-1 shrink-0 overflow-x-auto no-scrollbar">
           {[
+            { id: 'github', label: '🚀 Exportar para GitHub' },
             { id: 'websocket', label: '⚡ Swoole WebSockets (PHP)' },
             { id: 'escrow', label: '🛡️ Custódia Escrow & PIX' },
             { id: 'guiamoteis', label: '🏨 API Guia de Motéis' },
