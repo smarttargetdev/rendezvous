@@ -8,13 +8,13 @@ export default defineConfig(() => {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        '@': path.resolve(import.meta.dirname, 'application'),
-        '/src': path.resolve(import.meta.dirname, 'application'),
+        '@': path.resolve(import.meta.dirname, 'frontend'),
+        '/src': path.resolve(import.meta.dirname, 'frontend'),
       },
     },
     base: '/',
     build: {
-      outDir: path.resolve(path.relative(import.meta.dirname, '..'), 'build/application'),
+      outDir: path.resolve(import.meta.dirname, 'build/frontend'),
       emptyOutDir: true,
       sourcemap: true,
       cssMinify: true,
